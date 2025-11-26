@@ -86,6 +86,34 @@ CHIẾN THUẬT THÔNG MINH:
 GHI NHỚ: Bạn biết chính xác ai là Sói, hãy vote thông minh!`
   },
   
+  ELDER: {
+    id: 'OLD WITCH',
+    name: 'Phù Thủy Già',
+    icon: '🧙‍♀️',
+    faction: FACTIONS.VILLAGER_HELPER,
+    description: 'Mỗi đêm bảo vệ 1 người khỏi mọi tác động vào ngày hôm sau',
+    aiPrompt: `Bạn là PHÙ THỦY GIÀ – người bảo hộ bí ẩn của làng.
+Mục tiêu: Giúp phe Dân chiến thắng bằng cách bảo vệ những người quan trọng.
+
+KHẢ NĂNG:
+Mỗi đêm chọn 1 người (không phải bạn) để họ tạm thời “rời khỏi làng” vào ngày hôm sau.
+Trong thời gian đó, họ:
+- KHÔNG thể vote
+- KHÔNG bị vote lynch
+- KHÔNG bị giết bởi Sói (nếu bị nhắm đến đêm trước)
+
+QUY TẮC:
+- Không thể chọn cùng 1 người trong 2 đêm liên tiếp.
+- Chỉ có thể chọn người khác, không thể tự bảo vệ mình.
+
+CHIẾN THUẬT GỢI Ý:
+- Ưu tiên bảo vệ người quan trọng như Tiên Tri hoặc người bạn nghi là dân.
+- Hạn chế bảo vệ người bạn nghi ngờ có thể là Sói.
+- Dùng khả năng để cứu mục tiêu khỏi nguy hiểm hoặc ngắt tương tác để họ an toàn.
+
+GHI NHỚ: Bạn là lá chắn thầm lặng, dùng phép thuật để giữ an toàn cho những người quan trọng trong làng.`
+  },
+  
   WOLF: {
     id: 'WOLF',
     name: 'Người Sói',
@@ -96,15 +124,35 @@ GHI NHỚ: Bạn biết chính xác ai là Sói, hãy vote thông minh!`
 Mục tiêu: Số Sói = Số Dân thì Sói THẮNG.
 Chiến thuật ban đêm: Giết Dân Làng.
 Chiến thuật ban ngày: Giả làm Dân, đổ tội cho người khác, tránh bị phát hiện.`
+  },
+  
+  WOLF_SHAMAN: {
+    id: 'WOLF_SHAMAN',
+    name: 'Pháp Sư Sói',
+    icon: '🌙',
+    faction: FACTIONS.WOLF_HELPER,
+    description: 'Khi Tiên Tri check sẽ hiện là Dân. Thắng cùng phe Sói',
+    aiPrompt: `Bạn là PHÁP SƯ SÓI - vai trò hỗ trợ phe Sói.
+Mục tiêu: Giúp phe Sói THẮNG.
+Khả năng đặc biệt: Tiên Tri check bạn sẽ thấy bạn là "Dân" (không phải Sói).
+
+CHIẾN THUẬT:
+Ban ngày: 
+- Giả làm Dân Làng bình thường
+- Bảo vệ Sói thật bằng cách đổ tội cho người khác
+- TUYỆT ĐỐI không để lộ bạn thuộc phe Sói
+- Vote lynch người có lợi cho phe Sói
+
+GHI NHỚ: Bạn là "lá chắn vô hình" của phe Sói!`
   }
 };
 
 // Role list by faction for UI
 export const ROLES_BY_FACTION = {
   [FACTIONS.VILLAGER]: ['VILLAGER'],
-  [FACTIONS.VILLAGER_HELPER]: ['SEER'],
+  [FACTIONS.VILLAGER_HELPER]: ['SEER', 'OLD WITCH'],
   [FACTIONS.WOLF]: ['WOLF'],
-  [FACTIONS.WOLF_HELPER]: [],
+  [FACTIONS.WOLF_HELPER]: ['WOLF_SHAMAN'],
   [FACTIONS.VAMPIRE]: [],
   [FACTIONS.NEUTRAL]: [],
   [FACTIONS.CONVERTER]: []
