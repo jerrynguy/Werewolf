@@ -5,6 +5,7 @@ import GameLog from './components/GameLog';
 import GameStats from './components/GameStats';
 import WinnerDisplay from './components/WinnerDisplay';
 import { runGame } from './game/gameEngine';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function App() {
   const [selectedRoles, setSelectedRoles] = useState([
@@ -16,6 +17,7 @@ function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [log, setLog] = useState([]);
   const [showStats, setShowStats] = useState(false);
+  const [isSelectingRole, setIsSelectingRole] = useState(false);
 
   const startGame = () => {
     if (selectedRoles.length === 0) {
@@ -61,6 +63,7 @@ function App() {
           <RoleSelector 
             selectedRoles={selectedRoles}
             setSelectedRoles={setSelectedRoles}
+            onMenuToggle={setIsSelectingRole}
           />
 
           <div className="mt-6 flex gap-3">
@@ -125,17 +128,26 @@ function App() {
           <GameLog log={log} />
         )}
         
-        {/* How it works */}
-        <div className="mt-8 bg-blue-500/10 backdrop-blur-md rounded-xl p-6 border border-blue-300/20">
-          <h3 className="text-white font-bold text-lg mb-3">🧠 AI System</h3>
-          <div className="text-blue-100 text-sm space-y-2">
-            <p>✅ Mỗi lượt, AI nhận <strong>game state</strong> (số người còn sống mỗi phe)</p>
-            <p>✅ AI được cho <strong>role prompt</strong> (mục tiêu và chiến thuật)</p>
-            <p>✅ AI quyết định <strong>target</strong> và giải thích <strong>reasoning</strong></p>
-            <p>✅ Mỗi decision là <strong>context-aware</strong> - AI phân tích tình hình thực tế</p>
-            <p className="text-yellow-300 mt-3">⚠️ Mỗi game tốn ~20-40 API calls đến Claude</p>
-          </div>
-        </div>
+        {/* How it works - AI System Box */}
+        <AnimatePresence>
+          {!isSelectingRole && (
+            <motion.div
+              initial={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.3 }}
+              className="mt-8 bg-blue-500/10 backdrop-blur-md rounded-xl p-6 border border-blue-300/20"
+            >
+              <h3 className="text-white font-bold text-lg mb-3">🧠 AI System</h3>
+              <div className="text-blue-100 text-sm space-y-2">
+                <p>✅ Mỗi lượt, AI nhận <strong>game state</strong> (số người còn sống mỗi phe)</p>
+                <p>✅ AI được cho <strong>role prompt</strong> (mục tiêu và chiến thuật)</p>
+                <p>✅ AI quyết định <strong>target</strong> và giải thích <strong>reasoning</strong></p>
+                <p>✅ Mỗi decision là <strong>context-aware</strong> - AI phân tích tình hình thực tế</p>
+                <p className="text-yellow-300 mt-3">⚠️ Mỗi game tốn ~20-40 API calls đến Claude</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         
       </div>
     </div>
