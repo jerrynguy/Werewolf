@@ -13,12 +13,39 @@ export const initializePlayers = (selectedRoles) => {
         id: id++,
         role: roleConfig.type,
         faction: roleDef.faction,
-        alive: true
+        alive: true,
+        knownWolves: [] // For Seer to track who they checked
       });
     }
   });
   
   return players;
+};
+
+export const seerPhase = async (players, addLog) => {
+  const alive = players.filter(p => p.alive);
+  const seers = alive.filter(p => p.role === 'SEER');
+  
+  if (seers.length === 0) return;
+  
+  for (const seer of seers) {
+    const targets = alive.filter(p => p.id !== seer.id); // Không check chính mình
+    
+    if (targets.length === 0) continue;
+    
+    const decision = await makeAIDecision(seer, alive, 'seer_check', ROLES);
+    const target = targets.find(p => p.id === decision.targetId) || targets[0];
+    
+    const isWolf = target.role === 'WOLF';
+    
+    // Cập nhật tri thức của Seer
+    if (isWolf && !seer.knownWolves.includes(target.id)) {
+      seer.knownWolves.push(target.id);
+    }
+    
+    addLog(`🔮 Tiên Tri check Player #${target.id} → ${isWolf ? '🐺 ĐÂY LÀ SÓI!' : '✅ Không phải sói'}`);
+    addLog(`   💭 "${decision.reasoning}"`);
+  }
 };
 
 export const nightPhase = async (players, addLog) => {
@@ -55,7 +82,7 @@ export const dayPhase = async (players, addLog) => {
     if (target) {
       votes[target] = (votes[target] || 0) + 1;
       const targetPlayer = alive.find(p => p.id === target);
-      addLog(`   Player #${voter.id} vote #${target} (${ROLES[targetPlayer.role].icon}): "${decision.reasoning}"`);
+      addLog(`   Player #${voter.id} (${ROLES[voter.role].icon}) vote #${target} (${ROLES[targetPlayer.role].icon}): "${decision.reasoning}"`);
     }
   }
   
@@ -84,8 +111,10 @@ export const runGame = async (selectedRoles, setLog, setGameState, setIsRunning)
   addLog('🎮 GAME BẮT ĐẦU!');
   addLog(`👥 Tổng số: ${players.length} người`);
   const villagers = players.filter(p => p.role === 'VILLAGER').length;
+  const seers = players.filter(p => p.role === 'SEER').length;
   const wolves = players.filter(p => p.role === 'WOLF').length;
   addLog(`   - ${villagers} Dân Làng 👨‍🌾`);
+  if (seers > 0) addLog(`   - ${seers} Tiên Tri 🔮`);
   addLog(`   - ${wolves} Người Sói 🐺`);
   addLog('');
   
@@ -97,6 +126,11 @@ export const runGame = async (selectedRoles, setLog, setGameState, setIsRunning)
     
     // NIGHT
     addLog(`🌙 === ĐÊM ${night} ===`);
+    
+    // 1. Seer check TRƯỚC
+    await seerPhase(players, addLog);
+    
+    // 2. Wolves kill SAU
     await nightPhase(players, addLog);
     
     winner = checkWinner(players);

@@ -49,7 +49,7 @@ export const FACTION_INFO = {
     name: 'Phe Chuyển Đổi',
     icon: '🔄',
     color: 'orange',
-    description: 'Có thể chuyển đổi진영'
+    description: 'Có thể chuyển đổi phe'
   }
 };
 
@@ -65,6 +65,27 @@ Mục tiêu: Tiêu diệt HẾT Người Sói.
 Chiến thuật: Phân tích hành vi, bỏ phiếu thông minh để loại bỏ sói.
 Ban ngày: Tham gia thảo luận và vote lynch người đáng ngờ.`
   },
+  
+  SEER: {
+    id: 'SEER',
+    name: 'Tiên Tri',
+    icon: '🔮',
+    faction: FACTIONS.VILLAGER_HELPER,
+    description: 'Mỗi đêm kiểm tra 1 người để biết họ có phải Sói hay không',
+    aiPrompt: `Bạn là TIÊN TRI - vai trò quan trọng nhất phe Dân.
+Mục tiêu: Tìm ra Người Sói và giúp Dân thắng.
+Khả năng: Mỗi đêm kiểm tra 1 người để biết họ có phải SÓI hay không.
+
+CHIẾN THUẬT THÔNG MINH:
+1. Ban đêm: Ưu tiên check những người đáng ngờ nhất
+2. Ban ngày: 
+   - Nếu đã tìm thấy SÓI → vote lynch người đó
+   - KHÔNG tiết lộ bạn là Tiên Tri (sẽ bị Sói giết)
+   - Vote dựa trên "logic suy luận" thay vì nói thẳng bạn biết
+
+GHI NHỚ: Bạn biết chính xác ai là Sói, hãy vote thông minh!`
+  },
+  
   WOLF: {
     id: 'WOLF',
     name: 'Người Sói',
@@ -81,7 +102,7 @@ Chiến thuật ban ngày: Giả làm Dân, đổ tội cho người khác, trá
 // Role list by faction for UI
 export const ROLES_BY_FACTION = {
   [FACTIONS.VILLAGER]: ['VILLAGER'],
-  [FACTIONS.VILLAGER_HELPER]: [],
+  [FACTIONS.VILLAGER_HELPER]: ['SEER'],
   [FACTIONS.WOLF]: ['WOLF'],
   [FACTIONS.WOLF_HELPER]: [],
   [FACTIONS.VAMPIRE]: [],
