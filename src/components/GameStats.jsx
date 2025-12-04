@@ -129,7 +129,7 @@ const GameStats = ({ gameState }) => {
           {(stats.loneWolves > 0 || stats.deadLoneWolves > 0) && (
             <>
               <div>
-                <div className="text-purple-300 text-sm mb-1">🐺💔 Sói Cô Đơn sống</div>
+                <div className="text-purple-300 text-sm mb-1">🐺💔 Sói Cô Đơn sống!</div>
                 <div className="text-white text-2xl font-bold">{stats.loneWolves || 0}</div>
               </div>
               <div>
