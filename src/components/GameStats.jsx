@@ -10,13 +10,16 @@ const GameStats = ({ gameState }) => {
   const pieData = [
     { name: 'Dân Làng còn sống', value: stats.villagers, color: '#10b981' },
     { name: 'Người Sói còn sống', value: stats.wolves, color: '#ef4444' },
+    { name: 'Sói Cô Đơn còn sống', value: stats.loneWolves || 0, color: '#a855f7' },
     { name: 'Dân Làng đã chết', value: stats.deadVillagers, color: '#6b7280' },
-    { name: 'Người Sói đã chết', value: stats.deadWolves, color: '#374151' }
+    { name: 'Người Sói đã chết', value: stats.deadWolves, color: '#374151' },
+    { name: 'Sói Cô Đơn đã chết', value: stats.deadLoneWolves || 0, color: '#4b5563' }
   ];
 
   const barData = [
     { name: 'Dân Làng', alive: stats.villagers, dead: stats.deadVillagers },
-    { name: 'Người Sói', alive: stats.wolves, dead: stats.deadWolves }
+    { name: 'Người Sói', alive: stats.wolves, dead: stats.deadWolves },
+    { name: 'Sói Cô Đơn', alive: stats.loneWolves || 0, dead: stats.deadLoneWolves || 0 }
   ];
 
   return (
@@ -123,6 +126,18 @@ const GameStats = ({ gameState }) => {
             <div className="text-gray-400 text-sm mb-1">💀 Sói đã chết</div>
             <div className="text-white text-2xl font-bold">{stats.deadWolves}</div>
           </div>
+          {(stats.loneWolves > 0 || stats.deadLoneWolves > 0) && (
+            <>
+              <div>
+                <div className="text-purple-300 text-sm mb-1">🐺💔 Sói Cô Đơn sống</div>
+                <div className="text-white text-2xl font-bold">{stats.loneWolves || 0}</div>
+              </div>
+              <div>
+                <div className="text-gray-400 text-sm mb-1">💀 Sói Cô Đơn chết</div>
+                <div className="text-white text-2xl font-bold">{stats.deadLoneWolves || 0}</div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

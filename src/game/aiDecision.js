@@ -1,17 +1,130 @@
-export const makeAIDecision = async (player, alivePlayers, phase, ROLES, lastProtected = null) => {
+export const makeAIDecision = async (
+  player, 
+  alivePlayers, 
+  phase, 
+  ROLES, 
+  lastProtected = null,
+  wolfVictimId = null,
+  hasHealPotion = false,
+  hasPoisonPotion = false
+) => {
   const roleInfo = ROLES[player.role];
   
   const villagerCount = alivePlayers.filter(p => p.role === 'VILLAGER').length;
   const seerCount = alivePlayers.filter(p => p.role === 'SEER').length;
-  const old_witchCount = alivePlayers.filter(p => p.role === 'OLD WITCH').length;
+  const elderCount = alivePlayers.filter(p => p.role === 'ELDER').length;
+  const lycanCount = alivePlayers.filter(p => p.role === 'LYCAN').length;
+  const hunterCount = alivePlayers.filter(p => p.role === 'HUNTER').length;
+  const witchCount = alivePlayers.filter(p => p.role === 'WITCH').length;
   const wolfCount = alivePlayers.filter(p => p.role === 'WOLF').length;
+  const loneWolfCount = alivePlayers.filter(p => p.role === 'LONE_WOLF').length;  
   const shamanCount = alivePlayers.filter(p => p.role === 'WOLF_SHAMAN').length;
   
   let targets;
   let prompt;
   
-  // === OLD WITCH PROTECT PHASE ===
-  if (phase === 'old_witch_protect') {
+  // === WITCH ACTION PHASE ===
+  if (phase === 'witch_action') {
+    const victim = wolfVictimId ? alivePlayers.find(p => p.id === wolfVictimId) : null;
+    const victimInfo = victim 
+      ? `Player #${victim.id} đang bị Sói tấn công và sắp CHẾT!`
+      : `KHÔNG có ai bị Sói tấn công đêm nay (có thể họ tấn công người được Elder bảo vệ)`;
+    
+    const potionStatus = `
+  TÌNH TRẠNG THUỐC CỦA BẠN:
+  - Bình Cứu 💚: ${hasHealPotion ? 'CÒN (có thể dùng)' : 'ĐÃ HẾT'}
+  - Bình Độc ☠️: ${hasPoisonPotion ? 'CÒN (có thể dùng)' : 'ĐÃ HẾT'}`;
+    
+    // Targets cho poison (không bao gồm chính mình)
+    const poisonTargets = alivePlayers.filter(p => p.id !== player.id);
+    
+    prompt = `${roleInfo.aiPrompt}
+ 
+  TÌNH HÌNH HIỆN TẠI:
+  - Dân Làng còn sống: ${villagerCount}
+  - Tiên Tri còn sống: ${seerCount}
+  - Phù Thủy Già còn sống: ${elderCount}
+  - Người Hóa Sói còn sống: ${lycanCount}
+  - Thợ Săn còn sống: ${hunterCount}
+  - Phù Thủy còn sống: ${witchCount}
+  - Sói Cô Đơn còn sống: ${loneWolfCount}
+  - Người Sói còn sống: ${wolfCount}
+  - Pháp Sư Sói còn sống: ${shamanCount}
+ 
+  ${potionStatus}
+ 
+  THÔNG TIN ĐÊM NAY:
+  ${victimInfo}
+ 
+  BẠN CÓ 3 LỰA CHỌN:
+  1. Dùng Bình Cứu 💚 để cứu Player #${wolfVictimId || 'N/A'} (nếu còn bình)
+  2. Dùng Bình Độc ☠️ để giết 1 người (nếu còn bình)
+  3. Không làm gì cả
+ 
+  ${hasPoisonPotion ? `CÁC MỤC TIÊU CÓ THỂ ĐẦU ĐỘC:\n${poisonTargets.map(p => `- Player #${p.id}`).join('\n')}` : ''}
+ 
+  CHIẾN THUẬT:
+  - Nếu nạn nhân quan trọng (Tiên Tri?) → cứu
+  - Nếu bạn biết ai là Sói → đầu độc họ
+  - Đừng lãng phí thuốc vào người không quan trọng
+  - Mỗi bình chỉ dùng 1 lần!
+ 
+  QUY TẮC TRẢ LỜI:
+  - CHỈ trả lời bằng JSON
+  - KHÔNG thêm text nào khác
+  - Format: 
+    + Cứu người: {"action": "heal", "reasoning": "<string>"}
+    + Giết người: {"action": "poison", "targetId": <number>, "reasoning": "<string>"}
+    + Không làm gì: {"action": "nothing", "reasoning": "<string>"}`;
+    
+      if (!hasHealPotion && !hasPoisonPotion) {
+        // Witch hết thuốc, không làm gì
+        return { action: 'nothing', reasoning: 'Đã hết cả 2 bình thuốc' };
+      }
+    }
+
+  // === HUNTER REVENGE PHASE ===
+  else if (phase === 'hunter_revenge') {
+    targets = alivePlayers.filter(p => p.id !== player.id);
+
+    // Thợ Săn có thể bắn bất kỳ ai còn sống
+    let knownWolvesInfo = '';
+    if (player.knownWolves?.length > 0) {
+      knownWolvesInfo = `\n\nBẠN BIẾT NHỮNG NGƯỜI NÀY LÀ SÓI: ${player.knownWolves.map(id => `#${id}`).join(', ')}
++ → HÃY BẮN MỘT TRONG SỐ HỌ!`;
+    }
+
+    prompt = `${roleInfo.aiPrompt}
+
+BẠN VỪA BỊ GIẾT! NHƯNG LÀ MỘT THỢ SĂN, BẠN CÓ THỂ TRẢ THÙ BẰNG CÁCH BẮN MỘT NGƯỜI KHÁC TRƯỚC KHI CHẾT.
+
+ TÌNH HÌNH HIỆN TẠI:
+ - Dân Làng còn sống: ${villagerCount}
+ - Tiên Tri còn sống: ${seerCount}
+ - Phù Thủy Già còn sống: ${elderCount}
+ - Người Hóa Sói còn sống: ${lycanCount}
+ - Thợ Săn còn sống: ${hunterCount}
+ - Phù Thủy còn sống: ${witchCount}
+ - Sói Cô Đơn còn sống: ${loneWolfCount}
+ - Người Sói còn sống: ${wolfCount}
+ - Pháp Sư Sói còn sống: ${shamanCount}
+ ${knownWolvesInfo}
+
+CÁC MỤC TIÊU KHẢ DỤNG:
+${targets.map(p => `- Player #${p.id}`).join('\n')}
+
+CHIEN THUẬT:
+- Nếu bạn biết ai là Sói → BẮN HỌ!
+- Chọn người bạn nghi ngờ nhất nếu không biết ai là Sói
+
+QUY TẮC TRẢ LỜI:
+- CHỈ trả lời bằng JSON
+- KHÔNG thêm text nào khác
+- Format: {"targetId": <number>, "reasoning": "<string>"}`;
+  }
+  
+  // === ELDER PROTECT PHASE ===
+  else if (phase === 'elder_protect') {
     // Không thể bảo vệ chính mình hoặc người vừa được bảo vệ đêm trước
     targets = alivePlayers.filter(p => 
       p.id !== player.id && 
@@ -24,20 +137,24 @@ export const makeAIDecision = async (player, alivePlayers, phase, ROLES, lastPro
     
     prompt = `${roleInfo.aiPrompt}
 
-TÌNH HÌNH HIỆN TẠI:
-- Dân Làng còn sống: ${villagerCount}
-- Tiên Tri còn sống: ${seerCount}
-- Phù Thủy Già còn sống: ${old_witchCount}
-- Người Sói còn sống: ${wolfCount}
-- Pháp Sư Sói còn sống: ${shamanCount}
-${lastProtectedInfo}
-
 BAN ĐÊM - Chọn 1 người để BẢO VỆ vào ngày hôm sau.
 
 NGƯỜI ĐƯỢC BẢO VỆ SẼ:
 - Rời làng an toàn (không bị Sói giết)
 - Không thể vote lynch
 - Không bị vote lynch
+
+ TÌNH HÌNH HIỆN TẠI:
+ - Dân Làng còn sống: ${villagerCount}
+ - Tiên Tri còn sống: ${seerCount}
+ - Phù Thủy Già còn sống: ${elderCount}
+ - Người Hóa Sói còn sống: ${lycanCount}
+ - Thợ Săn còn sống: ${hunterCount}
+ - Phù Thủy còn sống: ${witchCount}
+ - Sói Cô Đơn còn sống: ${loneWolfCount}
+ - Người Sói còn sống: ${wolfCount}
+ - Pháp Sư Sói còn sống: ${shamanCount}
+ ${knownWolvesInfo}
 
 CÁC MỤC TIÊU KHẢ DỤNG:
 ${targets.map(p => `- Player #${p.id}`).join('\n')}
@@ -63,15 +180,19 @@ QUY TẮC TRẢ LỜI:
     
     prompt = `${roleInfo.aiPrompt}
 
-TÌNH HÌNH HIỆN TẠI:
-- Dân Làng còn sống: ${villagerCount}
-- Tiên Tri còn sống: ${seerCount}
-- Phù Thủy Già còn sống: ${old_witchCount}
-- Người Sói còn sống: ${wolfCount}
-- Pháp Sư Sói còn sống: ${shamanCount}
-${knownSeersInfo}
-
 BAN ĐÊM - Chọn 1 người để KIỂM TRA xem họ có phải TIÊN TRI không.
+
+ TÌNH HÌNH HIỆN TẠI:
+ - Dân Làng còn sống: ${villagerCount}
+ - Tiên Tri còn sống: ${seerCount}
+ - Phù Thủy Già còn sống: ${elderCount}
+ - Người Hóa Sói còn sống: ${lycanCount}
+ - Thợ Săn còn sống: ${hunterCount}
+ - Phù Thủy còn sống: ${witchCount}
+ - Sói Cô Đơn còn sống: ${loneWolfCount}
+ - Người Sói còn sống: ${wolfCount}
+ - Pháp Sư Sói còn sống: ${shamanCount}
+ ${knownWolvesInfo}
 
 CÁC MỤC TIÊU KHẢ DỤNG:
 ${targets.map(p => `- Player #${p.id}`).join('\n')}
@@ -97,15 +218,19 @@ QUY TẮC TRẢ LỜI:
     
     prompt = `${roleInfo.aiPrompt}
 
-TÌNH HÌNH HIỆN TẠI:
-- Dân Làng còn sống: ${villagerCount}
-- Tiên Tri còn sống: ${seerCount}
-- Phù Thủy Già còn sống: ${old_witchCount}
-- Người Sói còn sống: ${wolfCount}
-- Pháp Sư Sói còn sống: ${shamanCount}
-${knownWolvesInfo}
-
 BAN ĐÊM - Chọn 1 người để KIỂM TRA xem họ có phải SÓI không.
+
+ TÌNH HÌNH HIỆN TẠI:
+ - Dân Làng còn sống: ${villagerCount}
+ - Tiên Tri còn sống: ${seerCount}
+ - Phù Thủy Già còn sống: ${elderCount}
+ - Người Hóa Sói còn sống: ${lycanCount}
+ - Thợ Săn còn sống: ${hunterCount}
+ - Phù Thủy còn sống: ${witchCount}
+ - Sói Cô Đơn còn sống: ${loneWolfCount}
+ - Người Sói còn sống: ${wolfCount}
+ - Pháp Sư Sói còn sống: ${shamanCount}
+ ${knownWolvesInfo}
 
 CÁC MỤC TIÊU KHẢ DỤNG:
 ${targets.map(p => `- Player #${p.id}`).join('\n')}
@@ -122,18 +247,30 @@ QUY TẮC TRẢ LỜI:
   }
   // === NIGHT KILL PHASE ===
   else if (phase === 'night_kill') {
-    targets = alivePlayers.filter(p => p.faction !== player.faction);
+    // Nếu là Lone Wolf: target là tất cả trừ Sói (để không lộ)
+    // Nếu là Wolf thường: target là tất cả trừ Wolf team
+    if (player.role === 'LONE_WOLF') {
+      targets = alivePlayers.filter(p => p.role !== 'WOLF' && p.role !== 'LONE_WOLF');
+    } else {
+      targets = alivePlayers.filter(p => p.faction !== player.faction && p.role !== 'LONE_WOLF');
+    }
+    
     
     prompt = `${roleInfo.aiPrompt}
 
-TÌNH HÌNH HIỆN TẠI:
-- Dân Làng còn sống: ${villagerCount}
-- Tiên Tri còn sống: ${seerCount}
-- Phù Thủy Già còn sống: ${old_witchCount}
-- Người Sói còn sống: ${wolfCount}
-- Pháp Sư Sói còn sống: ${shamanCount}
-
 BAN ĐÊM - Bạn phải chọn 1 người để giết.
+
+ TÌNH HÌNH HIỆN TẠI:
+ - Dân Làng còn sống: ${villagerCount}
+ - Tiên Tri còn sống: ${seerCount}
+ - Phù Thủy Già còn sống: ${elderCount}
+ - Người Hóa Sói còn sống: ${lycanCount}
+ - Thợ Săn còn sống: ${hunterCount}
+ - Phù Thủy còn sống: ${witchCount}
+ - Sói Cô Đơn còn sống: ${loneWolfCount}
+ - Người Sói còn sống: ${wolfCount}
+ - Pháp Sư Sói còn sống: ${shamanCount}
+ ${seerKnowledge}${shamanKnowledge}${loneWolfKnowledge}
 
 CÁC MỤC TIÊU KHẢ DỤNG:
 ${targets.map(p => `- Player #${p.id}`).join('\n')}
@@ -164,18 +301,41 @@ QUY TẮC TRẢ LỜI:
 - Hãy vote lynch Tiên Tri này để giúp phe Sói!
 - KHÔNG tiết lộ bạn là Pháp Sư Sói`;
     }
+
+    // Nếu là Lone Wolf, chiến thuật đặc biệt
+    let loneWolfKnowledge = '';
+    if (player.role === 'LONE_WOLF'){
+      const remainingWolves = alivePlayers.filter(p => p.role === 'WOLF')
+      const remainingVillagers = alivePlayers.filter(
+        p.role === 'VILLAGER' || p.role === 'SEER' || p.role === 'ELDER' ||
+        p.role === 'LYCAN' || p.role === 'HUNTER' || p.role === 'WITCH'
+      );
+
+      loneWolfKnowledge = `\n\nCHIẾN THUẬT SÓI CÔ ĐƠN:
+ - Còn ${remainingWolves.length} Sói thường
+ - Còn ${remainingVillagers.length} phe Dân
+ - Bạn cần còn lại 1-2 người để THẮNG!
+ - Ưu tiên vote lynch SÓI THƯỜNG trước (bán đứng họ!)
+ - Sau đó mới giết Dân
+ - Giả vờ là Dân để không bị nghi ngờ`;
+    
+    }
     
     prompt = `${roleInfo.aiPrompt}
 
-TÌNH HÌNH HIỆN TẠI:
-- Dân Làng còn sống: ${villagerCount}
-- Tiên Tri còn sống: ${seerCount}
-- Phù Thủy Già còn sống: ${old_witchCount}
-- Người Sói còn sống: ${wolfCount}
-- Pháp Sư Sói còn sống: ${shamanCount}
-${seerKnowledge}${shamanKnowledge}
-
 BAN NGÀY - Bạn phải bỏ phiếu lynch 1 người.
+
+ TÌNH HÌNH HIỆN TẠI:
+ - Dân Làng còn sống: ${villagerCount}
+ - Tiên Tri còn sống: ${seerCount}
+ - Phù Thủy Già còn sống: ${elderCount}
+ - Người Hóa Sói còn sống: ${lycanCount}
+ - Thợ Săn còn sống: ${hunterCount}
+ - Phù Thủy còn sống: ${witchCount}
+ - Sói Cô Đơn còn sống: ${loneWolfCount}
+ - Người Sói còn sống: ${wolfCount}
+ - Pháp Sư Sói còn sống: ${shamanCount}
+ ${knownWolvesInfo}
 
 CÁC MỤC TIÊU KHẢ DỤNG:
 ${targets.map(p => `- Player #${p.id} ${p.role === player.role ? '(đồng đội của bạn)' : ''}`).join('\n')}

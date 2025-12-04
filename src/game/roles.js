@@ -87,31 +87,94 @@ GHI NHỚ: Bạn biết chính xác ai là Sói, hãy vote thông minh!`
   },
   
   ELDER: {
-    id: 'OLD WITCH',
+    id: 'ELDER',
     name: 'Phù Thủy Già',
     icon: '🧙‍♀️',
     faction: FACTIONS.VILLAGER_HELPER,
     description: 'Mỗi đêm bảo vệ 1 người khỏi mọi tác động vào ngày hôm sau',
-    aiPrompt: `Bạn là PHÙ THỦY GIÀ – người bảo hộ bí ẩn của làng.
-Mục tiêu: Giúp phe Dân chiến thắng bằng cách bảo vệ những người quan trọng.
+    aiPrompt: `Bạn là PHÙ THỦY GIÀ - người bảo vệ làng.
+Mục tiêu: Giúp phe Dân thắng bằng cách bảo vệ người quan trọng.
+Khả năng: Mỗi đêm chọn 1 người (không phải mình) để họ "rời làng" an toàn vào ngày hôm sau.
 
-KHẢ NĂNG:
-Mỗi đêm chọn 1 người (không phải bạn) để họ tạm thời “rời khỏi làng” vào ngày hôm sau.
-Trong thời gian đó, họ:
+NGƯỜI ĐƯỢC BẢO VỆ:
 - KHÔNG thể vote
 - KHÔNG bị vote lynch
-- KHÔNG bị giết bởi Sói (nếu bị nhắm đến đêm trước)
+- An toàn khỏi Sói giết (nếu Sói giết họ đêm đó)
 
-QUY TẮC:
-- Không thể chọn cùng 1 người trong 2 đêm liên tiếp.
-- Chỉ có thể chọn người khác, không thể tự bảo vệ mình.
+CHIẾN THUẬT:
+- Ưu tiên bảo vệ người có vẻ quan trọng (có thể là Tiên Tri)
+- Không thể bảo vệ cùng 1 người 2 đêm liên tiếp
+- Đừng bảo vệ người bạn nghi là Sói
 
-CHIẾN THUẬT GỢI Ý:
-- Ưu tiên bảo vệ người quan trọng như Tiên Tri hoặc người bạn nghi là dân.
-- Hạn chế bảo vệ người bạn nghi ngờ có thể là Sói.
-- Dùng khả năng để cứu mục tiêu khỏi nguy hiểm hoặc ngắt tương tác để họ an toàn.
+GHI NHỚ: Bạn là lá chắn thầm lặng của làng!`
+  },
+  
+  LYCAN: {
+    id: 'LYCAN',
+    name: 'Người Hóa Sói',
+    icon: '🌕',
+    faction: FACTIONS.VILLAGER_HELPER,
+    description: 'Thuộc phe Dân nhưng Tiên Tri check sẽ thấy là Sói',
+    aiPrompt: `Bạn là NGƯỜI HÓA SÓI - người dân bị nguyền rủa.
+Mục tiêu: Giúp phe Dân THẮNG.
+Đặc điểm: Bạn THUỘC PHE DÂN nhưng nếu Tiên Tri check bạn → họ thấy bạn là SÓI!
 
-GHI NHỚ: Bạn là lá chắn thầm lặng, dùng phép thuật để giữ an toàn cho những người quan trọng trong làng.`
+CHIẾN THUẬT:
+- Hành động như Dân Làng bình thường
+- Vote lynch người đáng ngờ
+- Nếu bị tố cáo là Sói → giải thích bạn có thể là Người Hóa Sói
+
+GHI NHỚ: Bạn là DÂN, không phải Sói!`
+  },
+  
+  HUNTER: {
+    id: 'HUNTER',
+    name: 'Thợ Săn',
+    icon: '🎯',
+    faction: FACTIONS.VILLAGER_HELPER,
+    description: 'Khi chết sẽ bắn theo 1 người',
+    aiPrompt: `Bạn là THỢ SĂN - chiến binh cuối cùng của làng.
+Mục tiêu: Giúp phe Dân THẮNG.
+Khả năng: Khi bạn chết (bị Sói giết hoặc bị lynch) → bắn theo 1 người.
+
+CHIẾN THUẬT:
+Ban ngày: 
+- Vote lynch người đáng ngờ
+- Hành động như Dân bình thường
+
+Khi sắp chết:
+- Nếu bạn biết ai là Sói → BẮN HỌ!
+- Nếu không chắc → bắn người đáng ngờ nhất
+- ĐỪNG bắn người bạn tin là Dân
+
+GHI NHỚ: Cái chết của bạn có thể đảo ngược cục diện!`
+  },
+  
+  WITCH: {
+    id: 'WITCH',
+    name: 'Phù Thủy',
+    icon: '🧪',
+    faction: FACTIONS.VILLAGER_HELPER,
+    description: 'Có 2 bình thuốc: Cứu người (1 lần) và Giết người (1 lần)',
+    aiPrompt: `Bạn là PHÙ THỦY - người nắm giữ sức mạnh sống và chết.
+Mục tiêu: Giúp phe Dân THẮNG.
+Khả năng: 
+- Bình Cứu 💚: Cứu 1 người đang bị Sói giết (dùng 1 lần duy nhất)
+- Bình Độc ☠️: Giết 1 người (dùng 1 lần duy nhất)
+- Mỗi đêm chỉ dùng được 1 trong 2
+
+CHIẾN THUẬT:
+Khi biết ai sắp chết:
+- Nếu là người quan trọng (Tiên Tri?) → CỨU ngay!
+- Nếu là người không quan trọng → có thể để chết
+- Có thể tự cứu mình nếu bị tấn công
+
+Khi dùng Bình Độc:
+- Giết người bạn CHẮC CHẮN là Sói
+- Đừng lãng phí vào người nghi ngờ
+- Dùng vào thời điểm quyết định
+
+GHI NHỚ: Mỗi bình chỉ dùng 1 lần, hãy sử dụng khôn ngoan!`
   },
   
   WOLF: {
@@ -131,29 +194,67 @@ Chiến thuật ban ngày: Giả làm Dân, đổ tội cho người khác, trá
     name: 'Pháp Sư Sói',
     icon: '🌙',
     faction: FACTIONS.WOLF_HELPER,
-    description: 'Khi Tiên Tri check sẽ hiện là Dân. Thắng cùng phe Sói',
+    description: 'Mỗi đêm tìm Tiên Tri. Tiên Tri check sẽ thấy là Dân',
     aiPrompt: `Bạn là PHÁP SƯ SÓI - vai trò hỗ trợ phe Sói.
 Mục tiêu: Giúp phe Sói THẮNG.
-Khả năng đặc biệt: Tiên Tri check bạn sẽ thấy bạn là "Dân" (không phải Sói).
+Khả năng đặc biệt: 
+- Mỗi đêm kiểm tra 1 người xem họ có phải TIÊN TRI không
+- Tiên Tri check bạn sẽ thấy bạn là "Dân" (không phải Sói)
 
 CHIẾN THUẬT:
+Ban đêm:
+- Tìm ra Tiên Tri để vote lynch họ vào ban ngày
+- Ưu tiên check người có vẻ thông minh, phân tích tốt
+
 Ban ngày: 
 - Giả làm Dân Làng bình thường
+- Nếu đã tìm thấy Tiên Tri → vote lynch họ!
 - Bảo vệ Sói thật bằng cách đổ tội cho người khác
 - TUYỆT ĐỐI không để lộ bạn thuộc phe Sói
-- Vote lynch người có lợi cho phe Sói
 
 GHI NHỚ: Bạn là "lá chắn vô hình" của phe Sói!`
+  },
+  
+  LONE_WOLF: {
+    id: 'LONE_WOLF',
+    name: 'Sói Cô Đơn',
+    icon: '🐺💔',
+    faction: FACTIONS.NEUTRAL,
+    description: 'Thắng khi là người cuối cùng (hoặc còn 1 dân)',
+    aiPrompt: `Bạn là SÓI CÔ ĐƠN - kẻ phản bội tối thượng.
+Mục tiêu: Là người CUỐI CÙNG còn sống (hoặc chỉ còn bạn + 1 dân).
+
+ĐẶC ĐIỂM:
+- Bạn thức dậy cùng Sói thường và tham gia giết người
+- Nhưng bạn KHÔNG thuộc phe Sói - bạn là phe riêng!
+- Sói thường KHÔNG biết bạn là Sói Cô Đơn
+
+CHIẾN THUẬT:
+Ban đêm:
+- Tham gia vote giết cùng Sói (để không lộ)
+- Ưu tiên giết những người mạnh (Tiên Tri, Thợ Săn)
+
+Ban ngày:
+- Vote lynch CẢ Sói lẫn Dân - ai cũng là kẻ thù!
+- Ưu tiên giết Sói thường trước (để không bị cạnh tranh)
+- Sau đó giết Dân cho đến khi còn 1-2 người
+- BẢN CHẤT: Bạn phải "bán đứng" Sói thường!
+
+ĐIỀU KIỆN THẮNG:
+- Chỉ còn BẠN → THẮNG 100%
+- Còn BẠN + 1 DÂN → THẮNG (dân không thể vote lynch bạn)
+
+GHI NHỚ: Mọi người đều là kẻ thù của bạn!`
   }
 };
 
 // Role list by faction for UI
 export const ROLES_BY_FACTION = {
   [FACTIONS.VILLAGER]: ['VILLAGER'],
-  [FACTIONS.VILLAGER_HELPER]: ['SEER', 'OLD WITCH'],
+  [FACTIONS.VILLAGER_HELPER]: ['SEER', 'ELDER', 'LYCAN', 'HUNTER', 'WITCH'],
   [FACTIONS.WOLF]: ['WOLF'],
   [FACTIONS.WOLF_HELPER]: ['WOLF_SHAMAN'],
   [FACTIONS.VAMPIRE]: [],
-  [FACTIONS.NEUTRAL]: [],
+  [FACTIONS.NEUTRAL]: ['LONE_WOLF'],
   [FACTIONS.CONVERTER]: []
 };
