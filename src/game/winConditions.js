@@ -1,49 +1,77 @@
+// Helper function to categorize players by team
+const getTeamCounts = (alivePlayers) => {
+  const villagerTeam = alivePlayers.filter(p => 
+    p.role === 'VILLAGER' || 
+    p.role === 'SEER' || 
+    p.role === 'ELDER' || 
+    p.role === 'LYCAN' || 
+    p.role === 'HUNTER' || 
+    p.role === 'WITCH'
+  );
+  
+  const wolfTeam = alivePlayers.filter(p => 
+    p.role === 'WOLF' || 
+    p.role === 'WOLF_SHAMAN'
+  );
+  
+  const loneWolves = alivePlayers.filter(p => p.role === 'LONE_WOLF');
+  
+  return {
+    villagerCount: villagerTeam.length,
+    wolfCount: wolfTeam.length,
+    loneWolfCount: loneWolves.length,
+    total: alivePlayers.length
+  };
+};
+
 export const checkWinner = (players) => {
   const alive = players.filter(p => p.alive);
   
   if (alive.length === 0) return null;
 
-  // CHECK LONE WOLF WIN FIRST (highest priority)
+  const { villagerCount, wolfCount, loneWolfCount, total } = getTeamCounts(alive);
+
+  // ✅ FIX: Lone Wolf win condition - must check who else is alive
   const loneWolf = alive.find(p => p.role === 'LONE_WOLF');
   if (loneWolf) {
     // Lone Wolf thắng nếu:
-    // - Chỉ còn mình (alive.length === 1)
-    // - Hoặc còn mình + 1 người khác (alive.length === 2)
-    if (alive.length <= 2) {
+    // 1. Chỉ còn mình (total === 1)
+    if (total === 1) {
       return {
         faction: 'neutral',
         survivors: 1,
         icon: '🐺💔',
-        message: 'Sói Cô Đơn chiến thắng!'
+        message: 'Sói Cô Đơn chiến thắng! (Chỉ còn lại 1 mình)'
+      };
+    }
+    
+    // 2. Còn mình + 1 Villager (wolfCount === 0 && villagerCount === 1)
+    if (total === 2 && wolfCount === 0 && villagerCount === 1) {
+      return {
+        faction: 'neutral',
+        survivors: 1,
+        icon: '🐺💔',
+        message: 'Sói Cô Đơn chiến thắng! (Còn 1v1 với Dân)'
       };
     }
   }
   
-  // Phe Dân = Dân Làng + Tiên Tri + Phù Thủy Già
-  const villagerTeamCount = alive.filter(p => 
-    p.role === 'VILLAGER' || p.role === 'SEER' || p.role === 'ELDER' || p.role === 'LYCAN' || p.role === 'HUNTER' || p.role === 'WITCH'
-  ).length;
-  
-  // Phe Sói = Người Sói + Pháp Sư Sói
-  const wolfTeamCount = alive.filter(p => 
-    p.role === 'WOLF' || p.role === 'WOLF_SHAMAN'
-  ).length;
-  
-  // Wolves win: số phe sói >= số phe dân
-  if (wolfTeamCount > 0 && wolfTeamCount >= villagerTeamCount) {
+  // Wolves win: số phe sói >= số phe dân (không tính Lone Wolf)
+  if (wolfCount > 0 && wolfCount >= villagerCount) {
     return { 
       faction: 'wolf', 
-      survivors: wolfTeamCount, 
+      survivors: wolfCount, 
       icon: '🐺',
       message: 'Phe Sói chiến thắng!'
     };
   }
   
-  // Villagers win: không còn ai phe sói
-  if (wolfTeamCount === 0 && villagerTeamCount > 0) {
+  // Villagers win: không còn ai phe sói (bao gồm Lone Wolf)
+  // ✅ FIX: Lone Wolf cũng phải chết thì Dân mới thắng
+  if (wolfCount === 0 && loneWolfCount === 0 && villagerCount > 0) {
     return { 
       faction: 'villager', 
-      survivors: villagerTeamCount, 
+      survivors: villagerCount, 
       icon: '👨‍🌾',
       message: 'Phe Dân Làng chiến thắng!'
     };
@@ -56,23 +84,34 @@ export const getGameStats = (players, night) => {
   const alive = players.filter(p => p.alive);
   const dead = players.filter(p => !p.alive);
   
-  // Phe Dân bao gồm VILLAGER, SEER và ELDER
   const villagerTeamAlive = alive.filter(p => 
-    p.role === 'VILLAGER' || p.role === 'SEER' || p.role === 'ELDER' || p.role === 'LYCAN' || p.role === 'HUNTER' || p.role === 'WITCH'
-  );
-  const villagerTeamDead = dead.filter(p => 
-    p.role === 'VILLAGER' || p.role === 'SEER' || p.role === 'ELDER' || p.role === 'LYCAN' || p.role === 'HUNTER' || p.role === 'WITCH'
+    p.role === 'VILLAGER' || 
+    p.role === 'SEER' || 
+    p.role === 'ELDER' || 
+    p.role === 'LYCAN' || 
+    p.role === 'HUNTER' || 
+    p.role === 'WITCH'
   );
   
-  // Phe Sói bao gồm WOLF và WOLF_SHAMAN
-  const wolfTeamAlive = alive.filter(p => 
-    p.role === 'WOLF' || p.role === 'WOLF_SHAMAN'
+  const villagerTeamDead = dead.filter(p => 
+    p.role === 'VILLAGER' || 
+    p.role === 'SEER' || 
+    p.role === 'ELDER' || 
+    p.role === 'LYCAN' || 
+    p.role === 'HUNTER' || 
+    p.role === 'WITCH'
   );
+  
+  const wolfTeamAlive = alive.filter(p => 
+    p.role === 'WOLF' || 
+    p.role === 'WOLF_SHAMAN'
+  );
+  
   const wolfTeamDead = dead.filter(p => 
-    p.role === 'WOLF' || p.role === 'WOLF_SHAMAN'
+    p.role === 'WOLF' || 
+    p.role === 'WOLF_SHAMAN'
   );
 
-  // Lone Wolf tính riêng
   const loneWolfAlive = alive.filter(p => p.role === 'LONE_WOLF').length;
   const loneWolfDead = dead.filter(p => p.role === 'LONE_WOLF').length;
   

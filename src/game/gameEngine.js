@@ -1,5 +1,5 @@
 import { ROLES } from './roles';
-import { makeAIDecision } from './aiDecision';
+import { makeAIDecision, PHASES } from './aiDecision';
 import { checkWinner, getGameStats } from './winConditions';
 
 export const initializePlayers = (selectedRoles) => {
@@ -14,9 +14,9 @@ export const initializePlayers = (selectedRoles) => {
         role: roleConfig.type,
         faction: roleDef.faction,
         alive: true,
-        knownWolves: [], // For Seer to track wolves
-        knownSeers: [], // For Wolf Shaman to track seers
-        lastProtected: null, // For Elder to track last protected player
+        knownWolves: [],
+        knownSeers: [],
+        lastProtected: null,
         hasHealPotion: roleConfig.type === 'WITCH',
         hasPoisonPotion: roleConfig.type === 'WITCH'
       });
@@ -36,7 +36,6 @@ export const elderPhase = async (players, gameState, addLog) => {
   }
   
   for (const elder of elders) {
-    // Không thể bảo vệ chính mình, người đã chết, hoặc người vừa được bảo vệ đêm trước
     const targets = alive.filter(p => 
       p.id !== elder.id && 
       p.id !== elder.lastProtected
@@ -47,10 +46,9 @@ export const elderPhase = async (players, gameState, addLog) => {
       continue;
     }
     
-    const decision = await makeAIDecision(elder, alive, 'elder_protect', ROLES, elder.lastProtected);
+    const decision = await makeAIDecision(elder, alive, PHASES.ELDER_PROTECT, ROLES, elder.lastProtected);
     const target = targets.find(p => p.id === decision.targetId) || targets[0];
     
-    // Lưu người được bảo vệ vào game state
     gameState.protectedPlayerId = target.id;
     elder.lastProtected = target.id;
     
@@ -64,7 +62,6 @@ export const witchPhase = async (players, gameState, addLog) => {
   const witches = alive.filter(p => p.role === 'WITCH');
   
   if (witches.length === 0) {
-    // Không có Witch, victim chết luôn
     if (gameState.wolfVictimId) {
       const victim = players.find(p => p.id === gameState.wolfVictimId);
       victim.alive = false;
@@ -76,15 +73,16 @@ export const witchPhase = async (players, gameState, addLog) => {
     }
     return;
   }
+  
   for (const witch of witches) {
     const victimId = gameState.wolfVictimId;
     const victim = victimId ? players.find(p => p.id === victimId) : null;
 
-    // Witch biết ai sắp chết
+    // ✅ FIX: Use correct PHASES.WITCH_DECIDE
     const decision = await makeAIDecision(
       witch, 
       alive, 
-      'witch_decide', 
+      PHASES.WITCH_DECIDE,
       ROLES, 
       null,
       victimId,
@@ -92,12 +90,11 @@ export const witchPhase = async (players, gameState, addLog) => {
       witch.hasPoisonPotion
     );
 
-    // Xử lý quyết định của Witch
     if (decision.action === 'heal' && witch.hasHealPotion && victim) {
       witch.hasHealPotion = false;
       addLog(`🧪 Phù Thủy dùng Bình Cứu 💚 để cứu Player #${victimId}!`);
       addLog(`   💭 "${decision.reasoning}"`);
-      gameState.wolfVictimId = null; // Nạn nhân được cứu
+      gameState.wolfVictimId = null;
     } else if (decision.action === 'poison' && witch.hasPoisonPotion) {
       witch.hasPoisonPotion = false;
       const poisonTarget = alive.find(p => p.id === decision.targetId);
@@ -111,7 +108,6 @@ export const witchPhase = async (players, gameState, addLog) => {
         }
       }
 
-      // Victim của Sói vẫn chết (nếu không được cứu)
       if (victimId && gameState.wolfVictimId) {
         victim.alive = false;
         addLog(`💀 Player #${victim.id} (${ROLES[victim.role].icon} ${ROLES[victim.role].name}) đã chết vì bị Người Sói giết!`);
@@ -120,15 +116,12 @@ export const witchPhase = async (players, gameState, addLog) => {
           await hunterPhase(victim, players, addLog);
         }
       }
-
     } else {
-      // Witch không làm gì
       addLog(`🧪 Phù Thủy không sử dụng thuốc đêm nay`);
       if (decision.reasoning) {
         addLog(`   💭 "${decision.reasoning}"`);
       }
 
-      // Victim chết
       if (victimId && gameState.wolfVictimId) {
         victim.alive = false;
         addLog(`💀 Player #${victim.id} (${ROLES[victim.role].icon} ${ROLES[victim.role].name}) đã chết vì bị Người Sói giết!`);
@@ -140,7 +133,7 @@ export const witchPhase = async (players, gameState, addLog) => {
     }
   }
 
-  gameState.wolfVictimId = null; // Reset nạn nhân sau khi xử lý
+  gameState.wolfVictimId = null;
 };
 
 export const hunterPhase = async (deadHunter, players, addLog) => {
@@ -150,7 +143,7 @@ export const hunterPhase = async (deadHunter, players, addLog) => {
 
   addLog(`💥 Thợ Săn Player #${deadHunter.id} kích hoạt khả năng trước khi chết!`);
 
-  const decision = await makeAIDecision(deadHunter, alive, 'hunter_revenge', ROLES);
+  const decision = await makeAIDecision(deadHunter, alive, PHASES.HUNTER_REVENGE, ROLES);
   const target = alive.find(p => p.id === decision.targetId) || alive[0];
 
   target.alive = false;
@@ -165,16 +158,15 @@ export const shamanPhase = async (players, addLog) => {
   if (shamans.length === 0) return;
   
   for (const shaman of shamans) {
-    const targets = alive.filter(p => p.id !== shaman.id); // Không check chính mình
+    const targets = alive.filter(p => p.id !== shaman.id);
     
     if (targets.length === 0) continue;
     
-    const decision = await makeAIDecision(shaman, alive, 'shaman_check', ROLES);
+    const decision = await makeAIDecision(shaman, alive, PHASES.SHAMAN_CHECK, ROLES);
     const target = targets.find(p => p.id === decision.targetId) || targets[0];
     
     const isSeer = target.role === 'SEER';
     
-    // Cập nhật tri thức của Shaman
     if (isSeer && !shaman.knownSeers.includes(target.id)) {
       shaman.knownSeers.push(target.id);
     }
@@ -191,19 +183,15 @@ export const seerPhase = async (players, addLog) => {
   if (seers.length === 0) return;
   
   for (const seer of seers) {
-    const targets = alive.filter(p => p.id !== seer.id); // Không check chính mình
+    const targets = alive.filter(p => p.id !== seer.id);
     
     if (targets.length === 0) continue;
     
-    const decision = await makeAIDecision(seer, alive, 'seer_check', ROLES);
+    const decision = await makeAIDecision(seer, alive, PHASES.SEER_CHECK, ROLES);
     const target = targets.find(p => p.id === decision.targetId) || targets[0];
     
-    // PASSIVE ABILITIES:
-    // - Wolf Shaman sẽ hiện là "Không phải sói"
-    // - Lycan sẽ hiện là "Sói" (mặc dù thuộc phe Dân)
     const isWolf = target.role === 'WOLF' || target.role === 'LYCAN';
     
-    // Cập nhật tri thức của Seer
     if (isWolf && !seer.knownWolves.includes(target.id)) {
       seer.knownWolves.push(target.id);
     }
@@ -216,18 +204,14 @@ export const seerPhase = async (players, addLog) => {
 export const nightPhase = async (players, gameState, addLog) => {
   const alive = players.filter(p => p.alive);
   
-  // Wolves kill
   const wolves = alive.filter(p => p.role === 'WOLF' || p.role === 'LONE_WOLF');
   if (wolves.length > 0) {
-    // Targets: loại bỏ tất cả Sói (WOLF + LONE_WOLF)
     const targets = alive.filter(p => p.role !== 'WOLF' && p.role !== 'LONE_WOLF');
     if (targets.length > 0) {
-      // Sói thường vote (hoặc Lone Wolf nếu không còn Sói thường)
       const mainWolf = wolves.find(w => w.role === 'WOLF') || wolves[0];
-      const decision = await makeAIDecision(mainWolf, alive, 'night_kill', ROLES);
+      const decision = await makeAIDecision(mainWolf, alive, PHASES.NIGHT_KILL, ROLES);
       const victim = targets.find(p => p.id === decision.targetId) || targets[0];
       
-      // Kiểm tra nếu victim đang được Elder bảo vệ
       if (gameState.protectedPlayerId === victim.id) {
         addLog(`🐺 Người Sói cố giết Player #${victim.id} nhưng họ đã rời làng an toàn!`);
         addLog(`   💭 Lý do: "${decision.reasoning}"`);
@@ -246,7 +230,6 @@ export const dayPhase = async (players, gameState, addLog) => {
   
   if (alive.length === 0) return;
   
-  // Lọc ra người được bảo vệ (không tham gia vote)
   const protectedId = gameState.protectedPlayerId;
   const canVote = alive.filter(p => p.id !== protectedId);
   
@@ -259,11 +242,9 @@ export const dayPhase = async (players, gameState, addLog) => {
   
   addLog(`👥 Còn ${alive.length} người sống (${canVote.length} người tham gia vote)`);
   
-  // Voting - chỉ những người KHÔNG được bảo vệ mới vote
   const votes = {};
   for (const voter of canVote) {
-    // Targets cũng phải loại trừ người được bảo vệ
-    const decision = await makeAIDecision(voter, canVote, 'day_vote', ROLES);
+    const decision = await makeAIDecision(voter, canVote, PHASES.DAY_VOTE, ROLES);
     const target = decision.targetId;
     
     if (target) {
@@ -273,7 +254,6 @@ export const dayPhase = async (players, gameState, addLog) => {
     }
   }
   
-  // Lynch player with most votes
   if (Object.keys(votes).length > 0) {
     const lynchId = parseInt(Object.keys(votes).reduce((a, b) => 
       votes[a] > votes[b] ? a : b
@@ -284,7 +264,6 @@ export const dayPhase = async (players, gameState, addLog) => {
     
     addLog(`⚖️ Player #${lynchId} (${ROLES[lynched.role].icon} ${ROLES[lynched.role].name}) bị TREO CỔ với ${votes[lynchId]} phiếu!`);
 
-    // Nếu nạn nhân là Thợ Săn, kích hoạt khả năng trả thù
     if (lynched.role === 'HUNTER') {
       await hunterPhase(lynched, players, addLog);
     }
@@ -292,7 +271,6 @@ export const dayPhase = async (players, gameState, addLog) => {
     addLog(`⚖️ Không ai bị treo cổ`);
   }
   
-  // Reset protected player sau khi ngày kết thúc
   gameState.protectedPlayerId = null;
 };
 
@@ -305,6 +283,8 @@ export const runGame = async (selectedRoles, setLog, setGameState, setIsRunning)
   
   addLog('🎮 GAME BẮT ĐẦU!');
   addLog(`👥 Tổng số: ${players.length} người`);
+  
+  // Log roles
   const villagers = players.filter(p => p.role === 'VILLAGER').length;
   const seers = players.filter(p => p.role === 'SEER').length;
   const elders = players.filter(p => p.role === 'ELDER').length;
@@ -314,6 +294,7 @@ export const runGame = async (selectedRoles, setLog, setGameState, setIsRunning)
   const loneWolves = players.filter(p => p.role === 'LONE_WOLF').length;
   const wolves = players.filter(p => p.role === 'WOLF').length;
   const shamans = players.filter(p => p.role === 'WOLF_SHAMAN').length;
+  
   addLog(`   - ${villagers} Dân Làng 👨‍🌾`);
   if (seers > 0) addLog(`   - ${seers} Tiên Tri 🔮`);
   if (elders > 0) addLog(`   - ${elders} Phù Thủy Già 🧙‍♀️`);
@@ -327,33 +308,22 @@ export const runGame = async (selectedRoles, setLog, setGameState, setIsRunning)
   
   let night = 0;
   let winner = null;
-  const gameState = { protectedPlayerId: null }; // Track protected player
+  const gameState = { protectedPlayerId: null };
   
   while (!winner && night < 20) {
     night++;
     
-    // NIGHT
     addLog(`🌙 === ĐÊM ${night} ===`);
     
-    // 1. Elder protect ĐẦU TIÊN (bảo vệ cho ngày hôm sau)
     await elderPhase(players, gameState, addLog);
-    
-    // 2. Wolf Shaman check
     await shamanPhase(players, addLog);
-    
-    // 3. Seer check
     await seerPhase(players, addLog);
-    
-    // 4. Wolves attack
     await nightPhase(players, gameState, addLog);
-    
-    // 5. Witch quyết định (cứu hoặc giết)
     await witchPhase(players, gameState, addLog);
     
     winner = checkWinner(players);
     if (winner) break;
     
-    // DAY
     addLog(`☀️ === NGÀY ${night} ===`);
     await dayPhase(players, gameState, addLog);
     
