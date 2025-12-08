@@ -16,9 +16,11 @@ export const initializePlayers = (selectedRoles) => {
         alive: true,
         knownWolves: [],
         knownSeers: [],
+        knownFunctional: [],
         lastProtected: null,
         hasHealPotion: roleConfig.type === 'WITCH',
-        hasPoisonPotion: roleConfig.type === 'WITCH'
+        hasPoisonPotion: roleConfig.type === 'WITCH',
+        knownTriadMembers: [],
       });
     }
   });
@@ -151,6 +153,32 @@ export const hunterPhase = async (deadHunter, players, addLog) => {
   addLog(`   💭 "${decision.reasoning}"`);
 };
 
+export const triadRevealPhase = async (players, addLog) => {
+  const alive = players.filter(p => p.alive);
+  const triads = alive.filter(p => p.role === 'TRIAD_MEMBER');
+  
+  if (triads.length === 0) return;
+  
+  // Get all Triad member IDs
+  const triadIds = triads.map(t => t.id);
+  
+  addLog(`🤝 Hội Tam Điểm thức dậy và nhận ra nhau...`);
+  
+  // Each Triad member knows all other members
+  for (const triad of triads) {
+    const otherMembers = triadIds.filter(id => id !== triad.id);
+    triad.knownTriadMembers = otherMembers;
+    
+    if (otherMembers.length > 0) {
+      addLog(`   Player #${triad.id} biết các thành viên khác: ${otherMembers.map(id => `#${id}`).join(', ')}`);
+    } else {
+      addLog(`   Player #${triad.id} là thành viên duy nhất`);
+    }
+  }
+  
+  addLog(`   💡 LƯU Ý: Tuyệt đối KHÔNG được tiết lộ trong game!`);
+};
+
 export const shamanPhase = async (players, addLog) => {
   const alive = players.filter(p => p.alive);
   const shamans = alive.filter(p => p.role === 'WOLF_SHAMAN');
@@ -197,6 +225,37 @@ export const seerPhase = async (players, addLog) => {
     }
     
     addLog(`🔮 Tiên Tri check Player #${target.id} → ${isWolf ? '🐺 ĐÂY LÀ SÓI!' : '✅ Không phải sói'}`);
+    addLog(`   💭 "${decision.reasoning}"`);
+  }
+};
+
+export const auraSeerPhase = async (players, addLog) => {
+  const alive = players.filter(p => p.alive);
+  const auraSeers = alive.filter(p => p.role === 'AURA_SEER');
+  
+  if (auraSeers.length === 0) return;
+  
+  // Danh sách role CÓ chức năng
+  const FUNCTIONAL_ROLES = [
+    'SEER', 'ELDER', 'LYCAN', 'HUNTER', 'WITCH', 
+    'WOLF_SHAMAN', 'LONE_WOLF', 'AURA_SEER'
+  ];
+  
+  for (const auraSeer of auraSeers) {
+    const targets = alive.filter(p => p.id !== auraSeer.id);
+    
+    if (targets.length === 0) continue;
+    
+    const decision = await makeAIDecision(auraSeer, alive, PHASES.AURA_SEER_CHECK, ROLES);
+    const target = targets.find(p => p.id === decision.targetId) || targets[0];
+    
+    const hasPower = FUNCTIONAL_ROLES.includes(target.role);
+    
+    if (hasPower && !auraSeer.knownFunctional.includes(target.id)) {
+      auraSeer.knownFunctional.push(target.id);
+    }
+    
+    addLog(`✨ Tiên Tri Hào Quang check Player #${target.id} → ${hasPower ? '✨ CÓ CHỨC NĂNG!' : '❌ Không có chức năng (Dân/Sói thuần)'}`);
     addLog(`   💭 "${decision.reasoning}"`);
   }
 };
@@ -287,20 +346,24 @@ export const runGame = async (selectedRoles, setLog, setGameState, setIsRunning)
   // Log roles
   const villagers = players.filter(p => p.role === 'VILLAGER').length;
   const seers = players.filter(p => p.role === 'SEER').length;
+  const auraSeers = players.filter(p => p.role === 'AURA_SEER').length;
   const elders = players.filter(p => p.role === 'ELDER').length;
   const lycans = players.filter(p => p.role === 'LYCAN').length;
   const hunters = players.filter(p => p.role === 'HUNTER').length;
   const witches = players.filter(p => p.role === 'WITCH').length;
+  const triads = players.filter(p => p.role === 'TRIAD_MEMBER').length;
   const loneWolves = players.filter(p => p.role === 'LONE_WOLF').length;
   const wolves = players.filter(p => p.role === 'WOLF').length;
   const shamans = players.filter(p => p.role === 'WOLF_SHAMAN').length;
   
   addLog(`   - ${villagers} Dân Làng 👨‍🌾`);
   if (seers > 0) addLog(`   - ${seers} Tiên Tri 🔮`);
+  if (auraSeers > 0) addLog(`   - ${auraSeers} Tiên Tri Hào Quang ✨`);
   if (elders > 0) addLog(`   - ${elders} Phù Thủy Già 🧙‍♀️`);
   if (lycans > 0) addLog(`   - ${lycans} Người Hóa Sói 🌕`);
   if (hunters > 0) addLog(`   - ${hunters} Thợ Săn 🎯`);
   if (witches > 0) addLog(`   - ${witches} Phù Thủy 🧪`);
+  if (triads > 0) addLog(`   - ${triads} Hội Viên Tam Điểm 🤝`);
   if (loneWolves > 0) addLog(`   - ${loneWolves} Sói Cô Đơn 🐺💔`);
   addLog(`   - ${wolves} Người Sói 🐺`);
   if (shamans > 0) addLog(`   - ${shamans} Pháp Sư Sói 🌙`);
@@ -314,10 +377,15 @@ export const runGame = async (selectedRoles, setLog, setGameState, setIsRunning)
     night++;
     
     addLog(`🌙 === ĐÊM ${night} ===`);
+
+    if (night === 1) {
+      await triadRevealPhase(players, addLog);
+    }
     
     await elderPhase(players, gameState, addLog);
     await shamanPhase(players, addLog);
     await seerPhase(players, addLog);
+    await auraSeerPhase(players, addLog);
     await nightPhase(players, gameState, addLog);
     await witchPhase(players, gameState, addLog);
     

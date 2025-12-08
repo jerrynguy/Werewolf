@@ -6,7 +6,8 @@ const getTeamCounts = (alivePlayers) => {
     p.role === 'ELDER' || 
     p.role === 'LYCAN' || 
     p.role === 'HUNTER' || 
-    p.role === 'WITCH'
+    p.role === 'WITCH' ||
+    p.role === 'TRIAD_MEMBER' 
   );
   
   const wolfTeam = alivePlayers.filter(p => 
@@ -90,7 +91,8 @@ export const getGameStats = (players, night) => {
     p.role === 'ELDER' || 
     p.role === 'LYCAN' || 
     p.role === 'HUNTER' || 
-    p.role === 'WITCH'
+    p.role === 'WITCH' ||
+    p.role === 'TRIAD_MEMBER' 
   );
   
   const villagerTeamDead = dead.filter(p => 
@@ -99,7 +101,8 @@ export const getGameStats = (players, night) => {
     p.role === 'ELDER' || 
     p.role === 'LYCAN' || 
     p.role === 'HUNTER' || 
-    p.role === 'WITCH'
+    p.role === 'WITCH' ||
+    p.role === 'TRIAD_MEMBER' 
   );
   
   const wolfTeamAlive = alive.filter(p => 

@@ -6,7 +6,8 @@ export const PHASES = {
   SHAMAN_CHECK: 'shaman_check',
   ELDER_PROTECT: 'elder_protect',
   WITCH_DECIDE: 'witch_decide',
-  HUNTER_REVENGE: 'hunter_revenge'
+  HUNTER_REVENGE: 'hunter_revenge',
+  AURA_SEER_CHECK: 'aura_seer_check'
 };
 
 // === HELPER FUNCTIONS ===
@@ -14,10 +15,12 @@ const getGameStateInfo = (alivePlayers) => {
   return {
     villagerCount: alivePlayers.filter(p => p.role === 'VILLAGER').length,
     seerCount: alivePlayers.filter(p => p.role === 'SEER').length,
+    auraSeerCount: alivePlayers.filter(p => p.role === 'AURA_SEER').length,
     elderCount: alivePlayers.filter(p => p.role === 'ELDER').length,
     lycanCount: alivePlayers.filter(p => p.role === 'LYCAN').length,
     hunterCount: alivePlayers.filter(p => p.role === 'HUNTER').length,
     witchCount: alivePlayers.filter(p => p.role === 'WITCH').length,
+    triadCount: alivePlayers.filter(p => p.role === 'TRIAD_MEMBER').length,
     wolfCount: alivePlayers.filter(p => p.role === 'WOLF').length,
     loneWolfCount: alivePlayers.filter(p => p.role === 'LONE_WOLF').length,
     shamanCount: alivePlayers.filter(p => p.role === 'WOLF_SHAMAN').length
@@ -28,10 +31,12 @@ const formatGameStateText = (state) => {
   return `TÌNH HÌNH HIỆN TẠI:
 - Dân Làng còn sống: ${state.villagerCount}
 - Tiên Tri còn sống: ${state.seerCount}
+- Tiên Tri Hào Quang còn sống: ${state.auraSeerCount}
 - Phù Thủy Già còn sống: ${state.elderCount}
 - Người Hóa Sói còn sống: ${state.lycanCount}
 - Thợ Săn còn sống: ${state.hunterCount}
 - Phù Thủy còn sống: ${state.witchCount}
+- Hội Viên Tam Điểm còn sống: ${state.triadCount} 
 - Sói Cô Đơn còn sống: ${state.loneWolfCount}
 - Người Sói còn sống: ${state.wolfCount}
 - Pháp Sư Sói còn sống: ${state.shamanCount}`;
@@ -39,6 +44,27 @@ const formatGameStateText = (state) => {
 
 const getKnowledgeText = (player, phase) => {
   let knowledge = '';
+  
+  // Triad knowledge - CRITICAL: Must not reveal in reasoning!
+  if (player.role === 'TRIAD_MEMBER' && player.knownTriadMembers?.length > 0) {
+    knowledge += `\n\n⚠️ THÔNG TIN BÍ MẬT (KHÔNG ĐƯỢC NHỚ TRONG REASONING):
+- Bạn biết các thành viên Hội: ${player.knownTriadMembers.map(id => `#${id}`).join(', ')}
+- Họ cũng biết bạn
+- NHƯNG: Tuyệt đối KHÔNG nhắc đến điều này trong reasoning!
+- Hành động như Dân Làng độc lập!
+
+⛔ CẤM TUYỆT ĐỐI trong reasoning:
+- "thành viên hội"
+- "đồng đội của tôi" 
+- "người tôi tin tưởng"
+- "chúng ta"
+- Bất kỳ ám chỉ nào về liên kết
+
+✅ CHỈ ĐƯỢC NÓI:
+- "Tôi nghĩ người này đáng tin"
+- "Dựa trên logic cá nhân"
+- "Theo phân tích của tôi"`;
+  }
   
   // Seer knowledge
   if (player.role === 'SEER' && player.knownWolves?.length > 0) {
@@ -57,6 +83,16 @@ const getKnowledgeText = (player, phase) => {
     if (phase === PHASES.DAY_VOTE) {
       knowledge += `\n- Hãy vote lynch Tiên Tri này để giúp phe Sói!
 - KHÔNG tiết lộ bạn là Pháp Sư Sói`;
+    }
+  }
+
+  // Aura Seer knowledge
+  if (player.role === 'AURA_SEER' && player.knownFunctional?.length > 0) {
+    knowledge += `\n\nTHÔNG TIN QUAN TRỌNG (chỉ bạn biết):
+- Bạn ĐÃ KIỂM TRA và biết những người này CÓ CHỨC NĂNG: ${player.knownFunctional.map(id => `#${id}`).join(', ')}`;
+    if (phase === PHASES.DAY_VOTE) {
+      knowledge += `\n- Họ có thể là: Tiên Tri, Thợ Săn, Phù Thủy, Pháp Sư Sói, Sói Cô Đơn...
+- Quan sát hành vi để xác định họ thuộc phe nào`;
     }
   }
   
@@ -191,6 +227,27 @@ QUY TẮC TRẢ LỜI:
       specificInstructions = `
 BAN ĐÊM - Chọn 1 người để KIỂM TRA xem họ có phải SÓI không.
 ${knownWolvesInfo}
+
+CÁC MỤC TIÊU KHẢ DỤNG:
+${targets.map(p => `- Player #${p.id}`).join('\n')}
+
+QUY TẮC TRẢ LỜI:
+- CHỈ trả lời bằng JSON
+- KHÔNG thêm text nào khác
+- Format: {"targetId": <number>, "reasoning": "<string>"}`;
+      break;
+    }
+    
+    case PHASES.AURA_SEER_CHECK: {
+      targets = alivePlayers.filter(p => p.id !== player.id);
+      const alreadyChecked = player.knownFunctional || [];
+      const knownInfo = alreadyChecked.length > 0 
+        ? `\n- Bạn ĐÃ BIẾT những người có chức năng: ${alreadyChecked.map(id => `#${id}`).join(', ')}`
+        : '\n- Bạn chưa tìm thấy ai có chức năng';
+      
+      specificInstructions = `
+BAN ĐÊM - Chọn 1 người để KIỂM TRA xem họ có CHỨC NĂNG ĐẶC BIỆT hay không.
+${knownInfo}
 
 CÁC MỤC TIÊU KHẢ DỤNG:
 ${targets.map(p => `- Player #${p.id}`).join('\n')}
