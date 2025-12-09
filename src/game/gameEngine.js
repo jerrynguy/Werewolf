@@ -17,6 +17,10 @@ export const initializePlayers = (selectedRoles) => {
         knownWolves: [],
         knownSeers: [],
         knownFunctional: [],
+        isLover: false,
+        loverId: null,
+        loverFaction: null, // 'lovers' hoặc null
+        lastProtected: null,
         lastProtected: null,
         hasHealPotion: roleConfig.type === 'WITCH',
         hasPoisonPotion: roleConfig.type === 'WITCH',
@@ -68,9 +72,13 @@ export const witchPhase = async (players, gameState, addLog) => {
       const victim = players.find(p => p.id === gameState.wolfVictimId);
       victim.alive = false;
       addLog(`💀 Player #${victim.id} (${ROLES[victim.role].icon} ${ROLES[victim.role].name}) đã chết vì bị Người Sói giết!`);
-      
+      const deadLover = triggerLoverDeath(victim, players, addLog, ROLES);
+
       if (victim.role === 'HUNTER') {
         await hunterPhase(victim, players, addLog);
+      }
+      if (deadLover && deadLover.role === 'HUNTER') {
+        await hunterPhase(deadLover, players, addLog);
       }
     }
     return;
@@ -103,19 +111,28 @@ export const witchPhase = async (players, gameState, addLog) => {
       if (poisonTarget) {
         poisonTarget.alive = false;
         addLog(`🧪 Phù Thủy dùng Bình Độc 💀 để giết Player #${poisonTarget.id} (${ROLES[poisonTarget.role].icon} ${ROLES[poisonTarget.role].name})!`);
+        const deadLover = triggerLoverDeath(victim, players, addLog, ROLES);
         addLog(`   💭 "${decision.reasoning}"`);
 
         if (poisonTarget.role === 'HUNTER') {
           await hunterPhase(poisonTarget, players, addLog); 
+        }
+        if (deadLover && deadLover.role === 'HUNTER') {
+          await hunterPhase(deadLover, players, addLog);
         }
       }
 
       if (victimId && gameState.wolfVictimId) {
         victim.alive = false;
         addLog(`💀 Player #${victim.id} (${ROLES[victim.role].icon} ${ROLES[victim.role].name}) đã chết vì bị Người Sói giết!`);
+        const deadLover = triggerLoverDeath(victim, players, addLog, ROLES);
 
         if (victim.role === 'HUNTER') {
           await hunterPhase(victim, players, addLog);
+        }
+
+        if (deadLover && deadLover.role === 'HUNTER') {
+          await hunterPhase(deadLover, players, addLog);
         }
       }
     } else {
@@ -127,15 +144,34 @@ export const witchPhase = async (players, gameState, addLog) => {
       if (victimId && gameState.wolfVictimId) {
         victim.alive = false;
         addLog(`💀 Player #${victim.id} (${ROLES[victim.role].icon} ${ROLES[victim.role].name}) đã chết vì bị Người Sói giết!`);
+        const deadLover = triggerLoverDeath(victim, players, addLog, ROLES);
 
         if (victim.role === 'HUNTER') {
           await hunterPhase(victim, players, addLog);
+        }
+
+        if (deadLover && deadLover.role === 'HUNTER') {
+          await hunterPhase(deadLover, players, addLog);
         }
       }
     }
   }
 
   gameState.wolfVictimId = null;
+};
+
+const triggerLoverDeath = (deadPlayer, players, addLog, ROLES) => {
+  if (!deadPlayer.isLover || !deadPlayer.loverId) return null;
+  
+  const lover = players.find(p => p.id === deadPlayer.loverId);
+  
+  if (lover && lover.alive) {
+    lover.alive = false;
+    addLog(`💔 Player #${lover.id} (${ROLES[lover.role].icon} ${ROLES[lover.role].name}) chết theo tình nhân!`);
+    return lover;
+  }
+  
+  return null;
 };
 
 export const hunterPhase = async (deadHunter, players, addLog) => {
@@ -151,6 +187,7 @@ export const hunterPhase = async (deadHunter, players, addLog) => {
   target.alive = false;
   addLog(`🎯 Thợ Săn bắn Player #${target.id} (${ROLES[target.role].icon} ${ROLES[target.role].name})`);
   addLog(`   💭 "${decision.reasoning}"`);
+  triggerLoverDeath(target, players, addLog, ROLES);
 };
 
 export const triadRevealPhase = async (players, addLog) => {
@@ -260,6 +297,109 @@ export const auraSeerPhase = async (players, addLog) => {
   }
 };
 
+export const cupidPhase = async (players, gameState, addLog) => {
+  const alive = players.filter(p => p.alive);
+  const cupids = alive.filter(p => p.role === 'CUPID');
+  
+  if (cupids.length === 0) return;
+  
+  for (const cupid of cupids) {
+    const targets = alive; // Cupid có thể chọn chính mình
+    
+    if (targets.length < 2) continue;
+    
+    const decision = await makeAIDecision(cupid, alive, PHASES.CUPID_LINK, ROLES);
+    
+    let lover1 = alive.find(p => p.id === decision.lover1);
+    let lover2 = alive.find(p => p.id === decision.lover2);
+    
+    // Fallback nếu AI lỗi
+    if (!lover1 || !lover2 || lover1.id === lover2.id) {
+      lover1 = targets[0];
+      lover2 = targets[1];
+    }
+    
+    // Link lovers
+    lover1.isLover = true;
+    lover1.loverId = lover2.id;
+    lover2.isLover = true;
+    lover2.loverId = lover1.id;
+    
+    // Determine faction
+    const newFaction = determineLoversFaction(lover1, lover2, ROLES);
+    
+    if (newFaction === 'lovers') {
+      lover1.loverFaction = 'lovers';
+      lover2.loverFaction = 'lovers';
+      lover1.faction = 'neutral'; // Override faction
+      lover2.faction = 'neutral';
+      addLog(`💘 Cupid chọn Player #${lover1.id} (${ROLES[lover1.role].icon}) ❤️ Player #${lover2.id} (${ROLES[lover2.role].icon})`);
+      addLog(`   💑 Họ trở thành PHE LOVERS (độc lập) - thắng khi chỉ còn 2 người họ sống sót!`);
+    } else if (newFaction === 'villager') {
+      lover1.loverFaction = 'villager';
+      lover2.loverFaction = 'villager';
+      lover1.faction = 'villager';
+      lover2.faction = 'villager';
+      addLog(`💘 Cupid chọn Player #${lover1.id} (${ROLES[lover1.role].icon}) ❤️ Player #${lover2.id} (${ROLES[lover2.role].icon})`);
+      addLog(`   👨‍🌾 Cả 2 về PHE DÂN LÀNG`);
+    } else {
+      // Giữ nguyên faction
+      addLog(`💘 Cupid chọn Player #${lover1.id} (${ROLES[lover1.role].icon}) ❤️ Player #${lover2.id} (${ROLES[lover2.role].icon})`);
+      addLog(`   ❤️ Họ giữ nguyên phe nhưng là đồng minh tuyệt đối!`);
+    }
+    
+    addLog(`   💭 "${decision.reasoning}"`);
+    addLog(`   📋 Lover 1 biết: Player #${lover2.id} là ${ROLES[lover2.role].name}`);
+    addLog(`   📋 Lover 2 biết: Player #${lover1.id} là ${ROLES[lover1.role].name}`);
+    
+    // Save to gameState
+    gameState.lovers = [lover1.id, lover2.id];
+  }
+};
+
+// Helper function
+const determineLoversFaction = (player1, player2, ROLES) => {
+  const role1 = ROLES[player1.role];
+  const role2 = ROLES[player2.role];
+  
+  const f1 = role1.faction;
+  const f2 = role2.faction;
+  
+  // Helper function to get faction category
+  const getCategory = (faction) => {
+    if (faction === 'villager' || faction === 'villager_helper') return 'villager';
+    if (faction === 'wolf' || faction === 'wolf_helper') return 'wolf';
+    return 'other'; // neutral, vampire, converter
+  };
+  
+  const cat1 = getCategory(f1);
+  const cat2 = getCategory(f2);
+  
+  // Case 1: Cùng category → giữ nguyên
+  if (cat1 === cat2) {
+    return cat1;
+  }
+  
+  // Case 2: Có ít nhất 1 neutral/vampire/converter → Lovers
+  if (cat1 === 'other' || cat2 === 'other') {
+    return 'lovers';
+  }
+  
+  // Case 3: Villager vs Wolf
+  // Check nếu có helper
+  const hasHelper = (f1 === 'villager_helper' || f1 === 'wolf_helper' || 
+                     f2 === 'villager_helper' || f2 === 'wolf_helper');
+  const hasCoreWolf = (player1.role === 'WOLF' || player2.role === 'WOLF');
+  
+  // Nếu có helper và KHÔNG có core WOLF → về Dân
+  if (hasHelper && !hasCoreWolf) {
+    return 'villager';
+  }
+  
+  // Còn lại → Lovers
+  return 'lovers';
+};
+
 export const nightPhase = async (players, gameState, addLog) => {
   const alive = players.filter(p => p.alive);
   
@@ -320,11 +460,16 @@ export const dayPhase = async (players, gameState, addLog) => {
     
     const lynched = players.find(p => p.id === lynchId);
     lynched.alive = false;
+
+    const deadLover = triggerLoverDeath(lynched, players, addLog, ROLES);
     
     addLog(`⚖️ Player #${lynchId} (${ROLES[lynched.role].icon} ${ROLES[lynched.role].name}) bị TREO CỔ với ${votes[lynchId]} phiếu!`);
 
     if (lynched.role === 'HUNTER') {
       await hunterPhase(lynched, players, addLog);
+    }
+    if (deadLover && deadLover.role === 'HUNTER') {
+      await hunterPhase(deadLover, players, addLog);
     }
   } else {
     addLog(`⚖️ Không ai bị treo cổ`);
@@ -347,6 +492,7 @@ export const runGame = async (selectedRoles, setLog, setGameState, setIsRunning)
   const villagers = players.filter(p => p.role === 'VILLAGER').length;
   const seers = players.filter(p => p.role === 'SEER').length;
   const auraSeers = players.filter(p => p.role === 'AURA_SEER').length;
+  const cupids = players.filter(p => p.role === 'CUPID').length;
   const elders = players.filter(p => p.role === 'ELDER').length;
   const lycans = players.filter(p => p.role === 'LYCAN').length;
   const hunters = players.filter(p => p.role === 'HUNTER').length;
@@ -359,6 +505,7 @@ export const runGame = async (selectedRoles, setLog, setGameState, setIsRunning)
   addLog(`   - ${villagers} Dân Làng 👨‍🌾`);
   if (seers > 0) addLog(`   - ${seers} Tiên Tri 🔮`);
   if (auraSeers > 0) addLog(`   - ${auraSeers} Tiên Tri Hào Quang ✨`);
+  if (cupids > 0) addLog(`   - ${cupids} Thần Tình Yêu 💘`);
   if (elders > 0) addLog(`   - ${elders} Phù Thủy Già 🧙‍♀️`);
   if (lycans > 0) addLog(`   - ${lycans} Người Hóa Sói 🌕`);
   if (hunters > 0) addLog(`   - ${hunters} Thợ Săn 🎯`);
@@ -380,6 +527,9 @@ export const runGame = async (selectedRoles, setLog, setGameState, setIsRunning)
 
     if (night === 1) {
       await triadRevealPhase(players, addLog);
+    }
+    if (night === 1) {
+      await cupidPhase(players, gameState, addLog);
     }
     
     await elderPhase(players, gameState, addLog);

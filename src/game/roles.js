@@ -113,6 +113,33 @@ CHIẾN THUẬT:
 
 GHI NHỚ: Thông tin của bạn hữu ích nhưng không quyết định ngay!`
   },
+
+  CUPID: {
+    id: 'CUPID',
+    name: 'Thần Tình Yêu',
+    icon: '💘',
+    faction: FACTIONS.VILLAGER_HELPER,
+    description: 'Đêm đầu chọn 2 người yêu nhau. Nếu 1 người chết, người kia chết theo',
+    aiPrompt: `Bạn là THẦN TÌNH YÊU (Cupid) - người tạo nên duyên phận.
+Mục tiêu: Giúp phe Dân THẮNG.
+Khả năng: CHỈ ĐÊM ĐẦU TIÊN, chọn 2 người (có thể chọn chính mình) để trở thành "Cặp Đôi Tình Nhân".
+
+HIỆU ỨNG:
+- Nếu 1 người chết → người còn lại TỰ ĐỘNG CHẾT THEO
+- 2 người sẽ BIẾT NHAU (ID + vai trò)
+- Tùy vào phe của 2 người, họ có thể chuyển faction:
+  + Cùng phe → Giữ nguyên
+  + Dân + Sói Helper → Về phe Dân
+  + Dân + Sói thuần → Trở thành phe Lovers (độc lập)
+
+CHIẾN THUẬT:
+- Ưu tiên chọn người có vẻ QUAN TRỌNG (có thể là Tiên Tri, Thợ Săn)
+- Cân nhắc chọn 2 người MẠNH để bảo vệ nhau
+- Có thể chọn chính mình nếu muốn kiểm soát
+- Tránh chọn người đáng ngờ là Sói thuần (sẽ tạo phe Lovers)
+
+GHI NHỚ: Quyết định của bạn ảnh hưởng cả game!`
+  },
   
   ELDER: {
     id: 'ELDER',
@@ -321,7 +348,7 @@ GHI NHỚ: Mọi người đều là kẻ thù của bạn!`
 // Role list by faction for UI
 export const ROLES_BY_FACTION = {
   [FACTIONS.VILLAGER]: ['VILLAGER'],
-  [FACTIONS.VILLAGER_HELPER]: ['SEER', 'ELDER', 'LYCAN', 'HUNTER', 'WITCH', 'TRIAD_MEMBER', 'AURA_SEER'],
+  [FACTIONS.VILLAGER_HELPER]: ['SEER', 'ELDER', 'LYCAN', 'HUNTER', 'WITCH', 'TRIAD_MEMBER', 'AURA_SEER', 'CUPID'],
   [FACTIONS.WOLF]: ['WOLF'],
   [FACTIONS.WOLF_HELPER]: ['WOLF_SHAMAN'],
   [FACTIONS.VAMPIRE]: [],

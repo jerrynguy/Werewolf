@@ -7,7 +7,8 @@ export const PHASES = {
   ELDER_PROTECT: 'elder_protect',
   WITCH_DECIDE: 'witch_decide',
   HUNTER_REVENGE: 'hunter_revenge',
-  AURA_SEER_CHECK: 'aura_seer_check'
+  AURA_SEER_CHECK: 'aura_seer_check',
+  CUPID_LINK: 'cupid_link'
 };
 
 // === HELPER FUNCTIONS ===
@@ -16,6 +17,7 @@ const getGameStateInfo = (alivePlayers) => {
     villagerCount: alivePlayers.filter(p => p.role === 'VILLAGER').length,
     seerCount: alivePlayers.filter(p => p.role === 'SEER').length,
     auraSeerCount: alivePlayers.filter(p => p.role === 'AURA_SEER').length,
+    cupidCount: alivePlayers.filter(p => p.role === 'CUPID').length,
     elderCount: alivePlayers.filter(p => p.role === 'ELDER').length,
     lycanCount: alivePlayers.filter(p => p.role === 'LYCAN').length,
     hunterCount: alivePlayers.filter(p => p.role === 'HUNTER').length,
@@ -32,6 +34,7 @@ const formatGameStateText = (state) => {
 - Dân Làng còn sống: ${state.villagerCount}
 - Tiên Tri còn sống: ${state.seerCount}
 - Tiên Tri Hào Quang còn sống: ${state.auraSeerCount}
+- Thần Tình Yêu còn sống: ${state.cupidCount}
 - Phù Thủy Già còn sống: ${state.elderCount}
 - Người Hóa Sói còn sống: ${state.lycanCount}
 - Thợ Săn còn sống: ${state.hunterCount}
@@ -258,6 +261,28 @@ QUY TẮC TRẢ LỜI:
 - Format: {"targetId": <number>, "reasoning": "<string>"}`;
       break;
     }
+
+    case PHASES.CUPID_LINK: {
+      targets = alivePlayers.filter(p => p.id !== player.id);
+      
+      specificInstructions = `
+ĐÊM ĐẦU TIÊN - Chọn 2 người để trở thành CẶP ĐÔI TÌNH NHÂN.
+
+CÁC MỤC TIÊU KHẢ DỤNG:
+${targets.map(p => `- Player #${p.id}`).join('\n')}
+
+LƯU Ý:
+- Bạn CÓ THỂ chọn chính mình (Player #${player.id})
+- Nếu 1 người chết → người kia chết theo
+- Ưu tiên chọn người có vẻ quan trọng/mạnh
+
+QUY TẮC TRẢ LỜI:
+- CHỈ trả lời bằng JSON
+- KHÔNG thêm text nào khác
+- Format: {"lover1": <number>, "lover2": <number>, "reasoning": "<string>"}
+- lover1 và lover2 PHẢI KHÁC NHAU`;
+      break;
+    }
     
     case PHASES.NIGHT_KILL: {
       if (player.role === 'LONE_WOLF') {
@@ -382,6 +407,22 @@ export const makeAIDecision = async (
       if (decision.action === 'poison' && targets.find(p => p.id === decision.targetId)) {
         return decision;
       }
+    } 
+
+    if (phase === PHASES.CUPID_LINK) {
+      const { lover1, lover2 } = decision;
+      if (lover1 && lover2 && lover1 !== lover2) {
+        const p1 = alivePlayers.find(p => p.id === lover1);
+        const p2 = alivePlayers.find(p => p.id === lover2);
+        if (p1 && p2) {
+          return {
+            lover1,
+            lover2,
+            reasoning: decision.reasoning
+          };
+        }
+      }
+      console.warn('⚠️ Invalid Cupid decision:', decision);
     } else {
       // Regular phases with targetId
       if (targets.find(p => p.id === decision.targetId)) {
@@ -391,6 +432,7 @@ export const makeAIDecision = async (
         };
       }
     }
+
     
     console.warn('⚠️ Invalid decision:', decision);
   } catch (err) {
@@ -400,6 +442,19 @@ export const makeAIDecision = async (
   // Fallback
   if (phase === PHASES.WITCH_DECIDE) {
     return { action: 'nothing', reasoning: 'Chọn ngẫu nhiên (AI lỗi)' };
+  }
+
+  if (phase === PHASES.CUPID_LINK) {
+    const validTargets = alivePlayers.filter(p => p.id !== player.id);
+    if (validTargets.length >= 2) {
+      const l1 = validTargets[0];
+      const l2 = validTargets[1];
+      return {
+        lover1: l1.id,
+        lover2: l2.id,
+        reasoning: 'Chọn ngẫu nhiên (AI lỗi)'
+      };
+    }
   }
   
   const randomTarget = targets[Math.floor(Math.random() * targets.length)];

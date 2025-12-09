@@ -30,6 +30,16 @@ export const checkWinner = (players) => {
   
   if (alive.length === 0) return null;
 
+  const lovers = alive.filter(p => p.loverFaction === 'lovers');
+  if (lovers.length === 2 && alive.length === 2) {
+    return {
+      faction: 'lovers',
+      survivors: 2,
+      icon: '💑',
+      message: 'Cặp đôi tình nhân chiến thắng!'
+    };
+  }
+
   const { villagerCount, wolfCount, loneWolfCount, total } = getTeamCounts(alive);
 
   // ✅ FIX: Lone Wolf win condition - must check who else is alive
